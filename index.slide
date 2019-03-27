@@ -1,0 +1,211 @@
+Два очень разных опыта миграции на Go 
+На примере компаний Lazada и Ozon.Travel
+23 Sep 2018
+Tags: meetup, go, C#, legacy, php
+
+Васияров Юрий
+CTO, Ozon.Travel
+yvasiyarov@ozon.travel
+
+* Слайды
+Для вашего удобства слайды доступны на github
+[[https://github.com/yvasiyarov/meetup-23-09-2018][https://github.com/yvasiyarov/meetup-23-09-2018]]
+
+* 2014-2018 Руководил разработкой платформы в Lazada
+- крупнейший интернет магазин в Юго-Восточной Азии
+- Команда разработки: более 650 инженеров, из них 120 человек - команда платформы
+- 4 датацентра, более 2000 серверов
+- до 100k RPS на бэкэнды (декабрь 2017)
+.image lazada_map.png 350 _
+
+* 2018-настоящее время, CTO Ozon.Travel
+- самый популярный продавец авиа/жд билетов в России (Данные Wordstat и Euromonitor)
+- надежный (9 лет на рынке, где каждые полгода кто-то банкротится)
+- Нагрузка не как в Lazada, но тоже заставляет думать, прежде чем выкладывать в продакшен 
+.image ozon_travel.png 350 _
+
+* Как работает OTA ?
+.image ota_workflow.png
+
+* Параллелизм в C#, какие есть варианты? 
+- Thread
+- ThreadPool (ThreadPool.QueueUserWorkItem() и тд)
+- Threading.Tasks
+: Thread - OS-level thread, with its own stack and kernel resources. Требуют много ресурсов, переключение контекста между нитями, сложно управлять
+: ThreadPool gives you no control at all; you can submit work to execute at some point, and you can control the size of the pool, but you can’t set anything else. You can’t even tell when the pool will start running the work you submit to it. No way to get the result!!
+: Complexity. Memory footprint.
+: И так перейдем к задаче. как правило в виде "дано" выступает монолитное приложение. Давайте сравним PHP монолиты и C# монолиты
+
+* Параллелизм с помощью Threading.Tasks это легко
+.image navigation-trace-async-program.png 
+: TODO: Task memory footprint 
+
+* Как работает ThreadPool
+.image threadpool.png
+
+: //ThreadPool has per-appdomain managed queue of work-items. The VM is
+: //responsible for just scheduling threads into appdomains. After that
+: //work-items are dispatched from the managed queue.
+: work quantum is 30ms
+
+
+* Параллелизм с помощью Threading.Tasks это 
+- Требует много памяти(примерно 212kb на таск)
+- Если при выполнении таска случаются исключение - требуется еще больше памяти
+- Дорогое переключение контекста(индентификационные данные Windows, thread local data и тд) 
+.image terabyte_of_memory.jpg 270 _
+[[https://github.com/Microsoft/referencesource/blob/master/mscorlib/system/threading/threadpool.cs]]
+
+: Память измерял по PrivateMemorySize
+: Контекст включает в себя:
+:    Сжатый стэк (Thread.Principal)
+:    Идентификационные данные Windows
+:    Контекстные данные логического вызова(LogicalSetData/LogicalGetData)
+
+* Параллелизм в Golang 
+- goroutines
+- channels
+.image gophermegaphones.480.jpg
+
+* Планировщик в Golang
+- G: goroutine
+- M: OS thread (machine)
+- P: processor
+.image scheduler-concepts.png 400 _
+
+* Параллелизм в Golang это действительно эффективно
+- Расход памяти: 240 *byte* (размер G struct) + 4kb(стек горутины)
+- Быстрое переключение между горутинами (контекст отсутсвует)
+- Вытесняющая многозадачность
+- Сам планировщик [[https://github.com/golang/go/blob/master/src/runtime/runtime2.go]]
+
+* С# монолит VS PHP монолит
+- C# монолит более структурированный 
+- В C# легче отследить связи между компонентами
+: Объектно-ориентированная природа языка заставляет людей писать более структурированный приложения, с более понятной архитектурой, с более четким разделением на модули/подсистемы
+: конечно никакой язык не может помешать талантливым программистам создать хаос из зависимостей
+: но даже в этом плане в C# дела обстоят лучше: 
+: Так как C# язык со строгой типизацией - то этот хаос из зависимостей по крайней мере четко виден
+
+* C# монолит VS PHP монолит
+- В C# приложениях часто используют проприетарные или MS-defined кодировки/форматы данных 
+Например [[Bond][https://microsoft.github.io/bond/why_bond.html]] - аналог protobuf от Microsoft
+.image bond.png
+- В PHP приложениях чаще используются открытые форматы данных (хотя в семье не без урода, вспомним формат, в котором php хранит сессии)
+
+* C# монолит VS PHP монолит
+- В С# приложениях широко используются хранимые процедуры
+- В PHP приложениях для хранения данных, как правило, используют более простые подходы 
+: Я заметил что зачастую в C# слой хранимых процедур образует приложение в приложении
+: Если к этому добавить тот факт что сами хранимые процедуры в том же MS SQL можно писасть на C#
+: То возникают SQL монстры, где C# приложение по сути фронтенд для MS SQL сервера и не более того
+: Теперь давайте поговорим о людях. Ведь именно от них зависит успех всего предприятия
+
+
+* Переход с PHP на Go: Проект Goblin
+.image lazada_catalog.png 500 _
+
+: Если в качестве инструмента для разработки API/системных утилит  Golang себя давно зарекомендовал
+: то с фронтенд компонентами дело обстоит иначе. Скажем так - выбор Golang для разработки витрины является не очевидным решением.
+: Но мы попробовали и прямо сказать - результатом остались очень довольны 
+
+* Переход с PHP на Go: Проект Goblin
+.image 20.png 300 _
+
+* Что нужно знать о database/sql
+- Когда создается подключение ?
+- Когда оно закрывается ?
+- Cколько вообще  подключений ?
+- Есть ли ограничение на максимальное количество соединений ?
+- Что случится, если в пуле не будет свободных соединений ?
+- Что если SQL сервер закроет соединение ?
+
+* Ошибка при работе с транзакциями
+.code transaction.go 
+
+* Утечка соединений
+.code conn_leak.go
+
+* Однажды ночью на проде
+.image bum.png 550 _
+
+* Типичные ошибки при работе с database/sql
+- Использование Defer внутри цикла
+- Использование нескольких sql.DB объектов
+- Prepared statement используются только однажды
+- Использование db.Query() не для чтения
+- Предположение о том, что последующие запросы будут использовать тоже подключение
+- Использование объекта sql.DB во время работы с транзакцией
+.image db_guide.png 300 _  
+
+* Переход с PHP на Go
+[[https://github.com/yvasiyarov/meetup-23-09-2018/blob/master/stachka2017v3.pdf][Стачка 2017: Go – опыт промышленной разработки]]
+.image php_to_golang.png  
+: про особенности обучения PHP программистов Go-у я уже рассказывал в прошлом году, так что не буду повторяться 
+
+* Переход с C# на Go
+.image sharp.jpeg
+ 
+* Придется быть евангелистом Go
+.image lit_nicky.png 500 _
+: главная сложность - убедить человека что в правильности того что ты предлагешь
+: убедить что технологии не от MS также могут быть весьма интересными
+: в общем нужно быть ЕВАНГЕЛИСТОМ 
+
+* Что не очевидно для C# программиста
+.code slice.go
+ - C# программист(да и не только C#) ожидает, что slice - это reference type
+
+* Slice изнутри
+.code slice_internals.go
+- slice это просто структура
+- все структуры - это value type (в терминолигии C#)
+.image boyarskii.jpg 
+ 
+* Что насчет map[] ?
+.code map_internals.go
+
+* map[] - структура ????
+.image map_meme.jpg 
+: sizeof(hmap) = 28 bytes
+
+* Скорее указатель на структуру
+.code map_internals2.go
+[[https://golang.org/src/runtime/map.go][https://golang.org/src/runtime/map.go]]
+[[https://golang.org/src/runtime/map_fast32.go][https://golang.org/src/runtime/map_fast32.go]] 
+[[https://golang.org/src/runtime/map_fast64.go][https://golang.org/src/runtime/map_fast64.go]] 
+
+* Что насчет channel ?
+.code channel.go
+[[https://golang.org/src/runtime/chan.go][https://golang.org/src/runtime/chan.go]]
+
+* Проблемы с подключаемся к MS SQL
+**[[https://github.com/denisenkom/go-mssqldb]] 
+- Написана на Go
+- Но не поддерживает возвращаемые параметры(output params)
+
+**[[https://github.com/minus5/gofreetds]]
+-Требует FreeTDS библиотеку
+-Падает, если входные параметры хранимой процедуры, имееют тип alias
+.image This_is_Fine_Gopher.png 300 _
+
+* gRPC C#
+**[[https://github.com/grpc/grpc/tree/master/src/csharp]] 
+- как-то работает
+- написана явно не C# программистами 
+
+* Что еще напрягает в Go 
+.image golang_error_handling.png
+
+* Чего не хватает в Go
+.image golang_generics.jpg 600 _ 
+
+
+* Чего не хватает в Go
+- Нет тернарных операторов 
+- Нет enum 
+.image golang2.jpeg 500 _ 
+
+* Ждем Golang 2.0
+.image golang2.jpg 500 _  
+
