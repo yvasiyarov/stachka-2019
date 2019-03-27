@@ -182,12 +182,14 @@ yvasiyarov@ozon.travel
 * Проблемы с подключаемся к MS SQL
 **[[https://github.com/denisenkom/go-mssqldb]] 
 - Написана на Go
-- Но не поддерживает возвращаемые параметры(output params)
+- Не поддерживает возврат переменных табличного типа из хранимых процедур
+- Возвращает только последнее исключение (если их было несколько предыдущие не возвращаются)
 
 **[[https://github.com/minus5/gofreetds]]
 -Требует FreeTDS библиотеку
 -Падает, если входные параметры хранимой процедуры, имееют тип alias
 .image This_is_Fine_Gopher.png 300 _
+: Мы используем нативный драйвер. Для обоих перечисленных проблем можно сделать workaround
 
 * gRPC C#
 **[[https://github.com/grpc/grpc/tree/master/src/csharp]] 
