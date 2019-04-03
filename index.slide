@@ -32,7 +32,7 @@ yvasiyarov@ozon.travel
 : Но мы попробовали и прямо сказать - результатом остались очень довольны 
 
 * Особенности решаемой задачи
-- Самая высоконагруженная часть сайта (до 70K RPS)
+- Каталог - самая высоконагруженная часть сайта (до 70K RPS)
 - Большое потребление аппаратных ресурсов(80 DELL серверов)
 - Быстрый рост нагрузки (120% в год)
 
@@ -61,13 +61,13 @@ yvasiyarov@ozon.travel
 * Утечка соединений
 .code conn_leak.go
 
-* Однажды ночью на проде
+* Утечка соединений обычно выстреливает по ночам
 .image bum.png 550 _
 
 * Какие еще ошибки мы любим повторять ?
 - Используем Prepared statement только однажды
 - Используем db.Query() не для чтения
-- Полагаться на MySQL сессию вне транзакции
+- Полагаться на состояние MySQL сессии вне транзакции
 .image db_guide.png 300 _  
 
 * Переход с C# на Go: Ozon.Travel
@@ -94,7 +94,7 @@ yvasiyarov@ozon.travel
 .image navigation-trace-async-program.png 
 : TODO: Task memory footprint 
 
-* Как работает ThreadPool
+* Как работает Threading.Tasks
 .image threadpool.png
 
 : //ThreadPool has per-appdomain managed queue of work-items. The VM is
@@ -103,7 +103,7 @@ yvasiyarov@ozon.travel
 : work quantum is 30ms
 
 
-* Параллелизм с помощью Threading.Tasks это 
+* Параллелизм с помощью Threading.Tasks  
 - Требует много памяти(примерно 212kb на таск)
 - Если при выполнении таска случаются исключение - требуется еще больше памяти
 - Дорогое переключение контекста(индентификационные данные Windows, thread local data и тд) 
@@ -149,8 +149,8 @@ yvasiyarov@ozon.travel
 : убедить что технологии не от MS также могут быть весьма интересными
 : в общем нужно быть ЕВАНГЕЛИСТОМ 
 
-* Что не очевидно для C# программиста
- - C# программист(да и не только C#) ожидает, что slice - это reference type
+* Типичные ошибки C# программиста
+ - C# программист(да и не только C#) ожидает, что slice - это ссылочный тип
 .code slice.go
 
 * Slice изнутри
@@ -162,7 +162,7 @@ yvasiyarov@ozon.travel
 * Что насчет map[] ?
 .code map_internals.go
 
-* map[] - структура ????
+* map[] - это value type ??  
 .image map_meme.jpg 
 : sizeof(hmap) = 28 bytes
 
